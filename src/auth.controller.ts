@@ -12,4 +12,19 @@ export class AuthController {
   signIn({ username, password, userAgent, ip }) {
     return this.authService.signIn(username, password, ip, userAgent);
   }
+
+  @MessagePattern({ cmd: 'change_password' })
+  changePassword({ oldPassword, newPassword }) {
+    return `change password ${oldPassword}, ${newPassword}`;
+  }
+
+  @MessagePattern({ cmd: 'reset_password' })
+  resetPassword({ newPassword, confirmPassword }) {
+    return `reset password ${newPassword}, ${confirmPassword}`
+  }
+
+  @MessagePattern({ cmd: 'logout' })
+  logout() {
+    return 'logout';
+  }
 }

@@ -6,10 +6,10 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { User } from './user.entity';
-import { Session } from './session.entity';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { User } from './user.entity';
+import { Session } from './session.entity';
 
 @Injectable()
 export class AppService {
@@ -19,38 +19,12 @@ export class AppService {
     private jwtService: JwtService,
     private configService: ConfigService
   ) {}
-  
-  async signIn(userName: string, password: string, ip: string, userAgent: string) {
-    const user: User = await this.userRepository.findOne({where: { userName }});
 
-    if (!user) {
-      throw new NotFoundException('Account does not exist. Please create an account or try again with a different username.');
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials. Please check your username and password and try again.');
-    }
-  
-    const tokens = await this.getTokens(user.id, user.userName);
-    
-    await this.sessionRepository.insert({userId: user.id, accessToken: tokens.accessToken, userAgent, ip});
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
-
-    return tokens;
-  }
-
-  getHashData(data: string) {
+  private getHashData(data: string) {
     return bcrypt.hash(data, 10);
   }
 
-  async updateRefreshToken(userId: number, refreshToken: string) {
-    const hashedRefreshToken = await this.getHashData(refreshToken);
-    await this.userRepository.update({id: userId}, {refreshToken: hashedRefreshToken});
-  }
-
-  async getTokens(id: number, userName: string) {
+  private async getTokens(id: number, userName: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
@@ -80,6 +54,44 @@ export class AppService {
       accessToken,
       refreshToken
     };
+  }
+
+  private async updateRefreshToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = await this.getHashData(refreshToken);
+    await this.userRepository.update({id: userId}, {refreshToken: hashedRefreshToken});
+  }
+  
+  async signIn(userName: string, password: string, ip: string, userAgent: string) {
+    const user: User = await this.userRepository.findOne({where: { userName }});
+
+    if (!user) {
+      throw new NotFoundException('Account does not exist. Please create an account or try again with a different username.');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials. Please check your username and password and try again.');
+    }
+  
+    const tokens = await this.getTokens(user.id, user.userName);
+    
+    await this.sessionRepository.insert({userId: user.id, accessToken: tokens.accessToken, userAgent, ip});
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+    return tokens;
+  }
+
+  async changePassword(oldPassword: string, newPassword: string) {
+
+  }
+
+  async resetPassword(newPassword: string, confirmPassword: string) {
+
+  }
+
+  async logout(accessToken: string) {
+    return this.sessionRepository.update({accessToken}, {accessToken: null});
   }
 }
 
